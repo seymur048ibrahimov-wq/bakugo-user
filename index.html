@@ -858,6 +858,21 @@ height:100%;
 html{ -webkit-text-size-adjust:100%; }
 html, body{ overflow:hidden !important; position:fixed; inset:0; width:100%; }
 #appScroll{ position:fixed; inset:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+/* ===== SÜRƏT: sürüşən siyahının içində backdrop-filter (arxa fonu bulanıqlaşdırma) hər kadrda
+   yenidən hesablanır və zəif telefonlarda "donma" yaradır. Siyahı elementlərində onu söndürüb
+   əvəzinə bir az daha sıx (qeyri-şəffaf) fon veririk — görünüş praktiki eyni qalır. ===== */
+.chain-section, .card, .fav-btn, .categories .cat, .btn, .close, .premium-location-input,
+.delete-location-btn, .premiumInput, header, .live-card{
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+}
+header{ background:rgba(255,250,235,0.96) !important; }
+html[data-theme="dark"] header{ background:rgba(5,10,18,0.96) !important; }
+.chain-section{ background:linear-gradient(145deg,rgba(255,255,255,0.92),rgba(255,255,255,0.80)) !important; }
+html[data-theme="dark"] .chain-section{ background:linear-gradient(145deg,rgba(20,24,38,0.95),rgba(14,18,30,0.90)) !important; }
+.fav-btn{ background:rgba(0,0,0,0.45) !important; }
+body::after{ display:none !important; }            /* xarici "noise" şəkli — əlavə təbəqə və şəbəkə sorğusu */
+.card{ contain:layout paint; }
+@media (prefers-reduced-motion: reduce){ *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } #bg{ display:none !important; } }
 body{ -webkit-tap-highlight-color:transparent; min-height:100%; }
 /* Paneldə/modalda sürüşdürmə arxadakı səhifəni çəkməsin */
 .panel, .product-modal, .pw-modal, .addr-suggest{ overscroll-behavior:contain; }
@@ -2841,13 +2856,13 @@ function optimizeImg(url, width){
   // dəfə yenidən sıxılmır (weserv öz tərəfində keşləyir).
   if(url.includes("firebasestorage.googleapis.com") || url.includes("firebasestorage.app")){
     const cleanUrl = url.replace(/^https?:\/\//, "");
-    return `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=75&output=webp`;
+    return `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&w=${width}&q=70&output=webp&we`;
   }
   // Cloudinary (restoran panelindən yüklənən əsas şəkillər indi buradan gəlir):
   // öz CDN-i üzərində birbaşa ölçü/sıxma/format çevirməsi dəstəkləyir - ayrıca
   // proksiyə ehtiyac yoxdur, `/upload/` hissəsindən sonra transformasiya əlavə edirik.
   if(url.includes("res.cloudinary.com")){
-    return url.replace("/upload/", `/upload/w_${width},q_75,f_auto,c_limit/`);
+    return url.replace("/upload/", `/upload/w_${width},q_auto:eco,f_auto,c_limit,dpr_auto/`);
   }
   return url;
 }
@@ -2880,7 +2895,7 @@ function buildCardsHtml(items, globalSearch){
       <div class="card chain-card reveal active ${isDiscount ? 'discounted' : ''}">
         <div class="fav-btn ${isFav}" onclick="toggleFav(this,${i})">❤</div>
         ${((window.__adultCats && window.__adultCats.has(f.category)) || f.alcohol === true) ? '<div style="position:absolute;top:6px;right:8px;z-index:6;background:#d40000;color:#fff;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:6px;">🔞 18+</div>' : ''}
-        <img src="${optimizeImg(f.img, 400)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';" onclick="openProduct(${i})">
+        <img src="${optimizeImg(f.img, 360)}" width="360" height="270" loading="lazy" decoding="async" fetchpriority="low" alt="" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=360&q=60';" onclick="openProduct(${i})">
         <div class="card-info">
           ${globalSearch ? `<div style="font-size: 11px; color: var(--orange); margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">${f.category}</div>` : ''}
           <h3>${f.name}</h3>
@@ -2904,6 +2919,25 @@ function debouncedRender(searchText = "", globalSearch = false){
 }
 window.debouncedRender = debouncedRender;
 
+function __appendMoreSections(){
+  const grid = document.getElementById("grid"), s = document.getElementById("gridMore");
+  if(!grid || !s || !window.__moreSections || !window.__moreSections.length){ if(s) s.remove(); return; }
+  const next = window.__moreSections.splice(0, 30).join("");
+  s.insertAdjacentHTML("beforebegin", next);
+  if(!window.__moreSections.length){ s.remove(); return; }
+  /* göstərici hələ də görünən zonadadırsa, növbəti hissəni də yükləmək üçün müşahidəni yenilə */
+  if(window.__gridIO){ window.__gridIO.unobserve(s); window.__gridIO.observe(s); }
+}
+function __watchGridMore(){
+  const s = document.getElementById("gridMore");
+  if(!s) return;
+  if(!("IntersectionObserver" in window)){ while(window.__moreSections && window.__moreSections.length) __appendMoreSections(); return; }
+  if(window.__gridIO) window.__gridIO.disconnect();
+  window.__gridIO = new IntersectionObserver(function(es){
+    if(es.some(e => e.isIntersecting)) requestAnimationFrame(__appendMoreSections);
+  }, { root: document.getElementById("appScroll") || null, rootMargin: "1200px 0px" });
+  window.__gridIO.observe(s);
+}
 async function render(searchText = "", globalSearch = false){
   const grid = document.getElementById("grid");
   if(!grid) return;
@@ -2975,9 +3009,10 @@ async function render(searchText = "", globalSearch = false){
   if(!found){
     grid.innerHTML = `<div style="text-align:center;padding:40px;font-size:20px;opacity:.7;">😔 ${globalSearch ? 'Axtarışa uyğun məhsul tapılmadı' : 'Bu kateqoriyada məhsul yoxdur'}</div>`;
   } else {
-    let sectionsHtml = "";
+    const __sections = [];
     let groupIndex = 0;
     groupEntries.forEach(({ chainKey, items, distanceKm, isRoad }) => {
+      let sectionsHtml = "";
       groupIndex++;
       const chainSafeKey = `${chainKey}-${groupIndex}`.replace(/[^a-zA-Z0-9]/g, '_');
       const isOpen = openChains.has(chainSafeKey);
@@ -2990,7 +3025,7 @@ async function render(searchText = "", globalSearch = false){
       const restaurantLogoUrl = groupRestaurantId ? (restaurantPhotos[groupRestaurantId] || "") : "";
       const chainLogoUrl = explicitLogo || restaurantLogoUrl || "";
       const chainIconHtml = chainLogoUrl
-        ? `<img src="${optimizeImg(chainLogoUrl, 100)}" alt="${chainKey}" loading="lazy" onerror="this.parentElement.innerHTML='${chainInitial}';">`
+        ? `<img src="${optimizeImg(chainLogoUrl, 96)}" width="48" height="48" alt="" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${chainInitial}';">`
         : chainInitial;
 
       // Zəncirin orta reytinqi (Bolt Food/Wolt-dakı ⭐ çipi üçün)
@@ -3040,8 +3075,24 @@ async function render(searchText = "", globalSearch = false){
           </div>
         </div>
       `;
+      __sections.push(sectionsHtml);
     });
-    grid.innerHTML = sectionsHtml;
+    /* SÜRƏT: yüzlərlə restoran olanda hamısını birdən DOM-a yazmırıq — əvvəl 30-u, qalanı
+       istifadəçi aşağı sürüşdükcə 30-30 əlavə olunur. Açıq restoran həmişə ilk hissədə olsun deyə
+       limit açıq olanı da əhatə edir. Eyni nəticə təkrar gələndə (Firestore yeniləməsi) DOM-a toxunmuruq. */
+    const PAGE = 30;
+    let firstCount = PAGE;
+    __sections.forEach((h, idx) => { if(h.indexOf('chain-header open') !== -1) firstCount = Math.max(firstCount, idx + 1); });
+    const firstHtml = __sections.slice(0, firstCount).join("");
+    window.__moreSections = __sections.slice(firstCount);
+    const sig = firstHtml.length + ":" + __sections.length + ":" + firstHtml.slice(0, 400) + firstHtml.slice(-400);
+    if(window.__gridSig !== sig || !grid.querySelector('.chain-section')){
+      window.__gridSig = sig;
+      grid.innerHTML = firstHtml + (window.__moreSections.length ? '<div id="gridMore" style="height:1px"></div>' : '');
+      __watchGridMore();
+    } else if(window.__moreSections.length && !document.getElementById('gridMore')){
+      grid.insertAdjacentHTML('beforeend', '<div id="gridMore" style="height:1px"></div>'); __watchGridMore();
+    }
   }
   try{ renderPremiumDeals(); }catch(e){ console.error("Premium bölmə xətası:", e); }
   try{ renderPromoRestaurants(); }catch(e){}
@@ -4996,20 +5047,32 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 let particles = [];
 const particleColors = ["rgba(150,100,20,0.55)","rgba(120,75,15,0.5)","rgba(200,140,40,0.5)"];
-for(let i=0;i<40;i++){
+for(let i=0;i<22;i++){
   particles.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*2.2+1, dx: (Math.random()-0.5)*0.6, dy: (Math.random()-0.5)*0.6, color: particleColors[Math.floor(Math.random()*particleColors.length)]});
 }
-function animate(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{
-    p.x += p.dx; p.y += p.dy;
-    if(p.x<0||p.x>canvas.width) p.dx*=-1;
-    if(p.y<0||p.y>canvas.height) p.dy*=-1;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.shadowBlur=3; ctx.shadowColor=p.color; ctx.fill();
-  });
-  requestAnimationFrame(animate);
+/* SÜRƏT: hissəciklər 30 kadr/san ilə, kölgəsiz çəkilir; tətbiq arxa fonda olanda və istifadəçi
+   sürüşdürərkən dayanır — beləliklə bütün CPU/GPU siyahının axıcı sürüşməsinə qalır. */
+let __bgLast = 0, __bgPausedUntil = 0, __bgRaf = null;
+function animate(t){
+  __bgRaf = null;
+  if(document.hidden) return;
+  if(t - __bgLast >= 33 && t >= __bgPausedUntil){
+    __bgLast = t;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{
+      p.x += p.dx; p.y += p.dy;
+      if(p.x<0||p.x>canvas.width) p.dx*=-1;
+      if(p.y<0||p.y>canvas.height) p.dy*=-1;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+    });
+  }
+  __bgRaf = requestAnimationFrame(animate);
 }
-animate();
+function __bgStart(){ if(!__bgRaf && !document.hidden) __bgRaf = requestAnimationFrame(animate); }
+document.addEventListener("visibilitychange", __bgStart);
+document.addEventListener("scroll", function(){ __bgPausedUntil = performance.now() + 400; }, { capture: true, passive: true });
+window.addEventListener("resize", function(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+if(!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) __bgStart();
 
 const glow = document.querySelector(".cursor-glow");
 document.addEventListener("mousemove",(e)=>{ if(glow) { glow.style.left = e.clientX + "px"; glow.style.top = e.clientY + "px"; } });
@@ -5069,6 +5132,7 @@ window.__expireFlashDiscounts = __expireFlashDiscounts;
 
 var __flashTickN = 0;
 function __flashTick(){
+  if(document.hidden) return;
   var now = Date.now(), anyExpired = false;
   document.querySelectorAll(".deal-cd").forEach(function(el){
     var left = (+el.getAttribute("data-ends")) - now;
@@ -5575,7 +5639,7 @@ function updatePromoBadges(){
     ov.id = "adOverlay"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
     ov.innerHTML = __adCardHtml(a);
     document.body.appendChild(ov);
-    var skip = Math.max(0, parseInt(a.skipAfter, 10) || 0), closable = (skip === 0);
+    var skip = Math.min(5, Math.max(0, parseInt(a.skipAfter, 10) || 0)), closable = (skip === 0);
     var closeBtn = ov.querySelector(".adx-close"), skipBtn = ov.querySelector(".adx-skip"), cta = ov.querySelector(".adx-cta");
     if(!closable){
       var left = skip;
