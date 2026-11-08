@@ -5290,7 +5290,8 @@ function updatePromoBadges(){
     measurementId: "G-44T95W0PSX"
   };
 
-  const app = initializeApp(firebaseConfig);
+  /* Ayrı ad: eyni telefonda müştəri və kuryer tətbiqi bir-birinin girişini pozmasın */
+  const app = initializeApp(firebaseConfig, "bakugo-musteri");
   const auth = getAuth(app);
   const db = getFirestore(app);
 
