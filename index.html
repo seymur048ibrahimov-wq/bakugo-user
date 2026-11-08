@@ -786,6 +786,20 @@
       });
     });
   }
+  /* SÜRÜŞDÜRMƏDƏ YUXARI/AŞAĞI ÇUBUQLARIN YIĞILIB-AÇILMAMASI ÜÇÜN:
+     səhifənin özü sürüşmür — bütün məzmun ekranı tam tutan #appScroll qutusunun içində sürüşür.
+     Belə olanda Chrome/Android yuxarıdakı çubuğu və aşağı paneli gizlədib-açmır, ekran sabit qalır. */
+  document.addEventListener("DOMContentLoaded", function(){
+    try {
+      if (document.getElementById("appScroll")) return;
+      var w = document.createElement("div"); w.id = "appScroll";
+      Array.prototype.slice.call(document.body.childNodes).forEach(function(n){
+        if (n.nodeType === 1 && /^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test(n.tagName)) return;
+        w.appendChild(n);
+      });
+      document.body.insertBefore(w, document.body.firstChild);
+    } catch(e){ console.warn("appScroll:", e); }
+  });
   /* Telefonun bildiriş panelində sistem bildirişi */
   window.showSystemNotif = async function(title, body, tag){
     try {
@@ -842,6 +856,8 @@ overscroll-behavior-y:none;
 height:100%;
 }
 html{ -webkit-text-size-adjust:100%; }
+html, body{ overflow:hidden !important; position:fixed; inset:0; width:100%; }
+#appScroll{ position:fixed; inset:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 body{ -webkit-tap-highlight-color:transparent; min-height:100%; }
 /* Paneldə/modalda sürüşdürmə arxadakı səhifəni çəkməsin */
 .panel, .product-modal, .pw-modal, .addr-suggest{ overscroll-behavior:contain; }
