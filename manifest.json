@@ -63,5 +63,38 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "ss-1.png",
+      "sizes": "720x1372",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Çatdırılma ünvanı"
+    },
+    {
+      "src": "ss-2.png",
+      "sizes": "720x1372",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ana səhifə"
+    },
+    {
+      "src": "ss-3.png",
+      "sizes": "720x1372",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ödəmə üsulu"
+    },
+    {
+      "src": "ss-4.png",
+      "sizes": "720x1372",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Məxfilik"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }
