@@ -2304,6 +2304,40 @@ input, textarea, [contenteditable]{ -webkit-user-select:text; user-select:text; 
 /* BAKUGO yazısının üstündəki alov/işıq ləkələri və giriş kartındakı parıltı — yığışdırıldı */
 .fire-logo span::before{ display:none !important; content:none !important; }
 .auth-box::before{ display:none !important; }
+
+/* ===== PREMİUM BAŞLIQ İKONLARI (menyu / bildiriş / hesab) ===== */
+.header-icons{ gap:12px !important; align-items:center; }
+.icon.hi{
+  width:46px !important; height:46px !important; border-radius:16px !important;
+  background:linear-gradient(155deg,#ffffff 0%,#fff4e2 100%) !important;
+  border:1px solid rgba(255,140,30,0.35) !important;
+  box-shadow:0 6px 16px rgba(190,110,20,0.16), inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -2px 6px rgba(255,170,80,0.10) !important;
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+  transition:transform .18s ease, box-shadow .18s ease !important;
+}
+.icon.hi:hover{ transform:none !important; }
+.icon.hi:active{ transform:scale(0.92) !important; box-shadow:0 2px 8px rgba(190,110,20,0.18), inset 0 1px 0 rgba(255,255,255,0.9) !important; }
+.icon.hi svg{
+  width:22px !important; height:22px !important; fill:none; stroke:url(#hiGrad); stroke:#ff7a00;
+  stroke-width:2 !important; stroke-linecap:round; stroke-linejoin:round;
+  filter:none !important; transform:none !important;
+}
+.icon.hi:hover svg{ transform:none !important; }
+.icon.hi svg path, .icon.hi svg circle{ stroke:url(#hiGrad); }
+html[data-theme="dark"] .icon.hi{
+  background:linear-gradient(155deg,#1b2233 0%,#0b101b 100%) !important;
+  border:1px solid rgba(255,170,70,0.40) !important;
+  box-shadow:0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 3px rgba(255,140,30,0.06) !important;
+}
+.icon.hi .badge{
+  top:-6px !important; right:-6px !important; min-width:20px; height:20px; padding:0 5px !important;
+  border-radius:10px !important; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,#ff4d3a,#ff7a00) !important; color:#fff !important;
+  font-size:11px !important; font-weight:800; line-height:1;
+  border:2px solid #fff8ea; box-shadow:0 3px 8px rgba(255,70,30,0.35);
+}
+html[data-theme="dark"] .icon.hi .badge{ border-color:#0b101b; }
+.icon.hi .badge.is-zero{ display:none !important; }
 .fire-logo span{ text-shadow:0 1px 2px rgba(120,50,0,0.25) !important; }
 .lightning{ text-shadow:none !important; }
 #splash h1{ text-shadow:none !important; }
@@ -2391,6 +2425,13 @@ input, textarea, [contenteditable]{ -webkit-user-select:text; user-select:text; 
     el.__lastHtml = html; el.innerHTML = html; return true;
   };
 
+
+  /* Bildiriş nişanı: 0 olanda göstərilməsin */
+  document.addEventListener("DOMContentLoaded", function(){
+    var b = document.getElementById("count"); if(!b) return;
+    var upd = function(){ var t = (b.textContent||"").trim(); b.classList.toggle("is-zero", t === "" || t === "0"); };
+    upd(); new MutationObserver(upd).observe(b, { childList:true, characterData:true, subtree:true });
+  });
   /* Təhlükəsizlik: nə olursa olsun 2 san sonra səhifə görünsün */
   setTimeout(function(){ document.documentElement.classList.add('app-ready'); }, 2000);
 })();
@@ -2492,9 +2533,9 @@ input, textarea, [contenteditable]{ -webkit-user-select:text; user-select:text; 
     <span>B</span><span>A</span><span>K</span><span>U</span><span>G</span><span>O</span>
   </div>
   <div class="header-icons">
-    <div class="icon" onclick="toggleMenu()">☰<div class="badge" id="menuBadge" style="display:none;">0</div></div>
-    <div class="icon" onclick="toggleNotif()">🔔<div class="badge" id="count">0</div></div>
-    <div class="icon" onclick="toggleAccount()">👤</div>
+    <div class="icon hi" role="button" aria-label="Menyu" onclick="toggleMenu()"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="hiGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#ff6a00"/></linearGradient></defs><path d="M4 7h16M4 12h11M4 17h16"/></svg><div class="badge" id="menuBadge" style="display:none;">0</div></div>
+    <div class="icon hi" role="button" aria-label="Bildirişlər" onclick="toggleNotif()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><div class="badge" id="count">0</div></div>
+    <div class="icon hi" role="button" aria-label="Hesab" onclick="toggleAccount()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4s6.3 1.8 7.5 5.4"/></svg></div>
   </div>
 </header>
 
