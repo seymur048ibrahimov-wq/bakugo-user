@@ -741,7 +741,7 @@
 })();
 
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>BakuGo</title>
 <meta name="description" content="BakuGo — Bakıda sürətli çatdırılma: restoran, market, içki, gül, aptek və daha çoxu.">
 <link rel="manifest" href="manifest.json">
@@ -799,6 +799,7 @@
       });
       document.body.insertBefore(w, document.body.firstChild);
     } catch(e){ console.warn("appScroll:", e); }
+    finally { document.documentElement.classList.add("app-ready"); }
   });
   /* Telefonun bildiriş panelində sistem bildirişi */
   window.showSystemNotif = async function(title, body, tag){
@@ -2288,6 +2289,112 @@ font-size:11px;font-weight:700;
 .pr-sub{font-size:11.5px;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px}
 .pr-btn{width:100%;border:none;border-radius:12px;padding:9px;font-weight:800;font-size:12.5px;cursor:pointer;color:#3a1a00;background:linear-gradient(90deg,#ffd777,#ffb24d);font-family:inherit}
 </style>
+<style id="perf-fix">
+/* ===== SABİT EKRAN + PERFORMANS (donma, get-gəl, zoom düzəlişi) ===== */
+/* Giriş: məzmun #appScroll-a köçürülənə qədər gizli — ekran "atılmır" */
+html:not(.app-ready) body > *:not(script):not(style){ visibility:hidden; }
+html, body{ touch-action:pan-x pan-y; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+#appScroll{ touch-action:pan-x pan-y; }
+.gm-style, .gm-style *, [id*="map" i], [id*="map" i] *{ touch-action:auto; }  /* xəritədə zoom qalır */
+input, textarea, select{ font-size:16px !important; }   /* iOS fokusda avtomatik zoom etməsin */
+*{ -webkit-touch-callout:none; }
+input, textarea, [contenteditable]{ -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
+/* Fasiləsiz hərəkət edən arxa fon hissəcikləri — bağlandı (ən böyük donma səbəbi) */
+#bg{ display:none !important; }
+/* BAKUGO yazısının üstündəki alov/işıq ləkələri və giriş kartındakı parıltı — yığışdırıldı */
+.fire-logo span::before{ display:none !important; content:none !important; }
+.auth-box::before{ display:none !important; }
+.fire-logo span{ text-shadow:0 1px 2px rgba(120,50,0,0.25) !important; }
+.lightning{ text-shadow:none !important; }
+#splash h1{ text-shadow:none !important; }
+/* "Parıltı" animasiyaları left ilə hərəkət edirdi (hər kadrda layout) → transform-a keçirildi */
+.adx-cta::after{ left:-60% !important; animation-name:adxShineT !important; will-change:transform; }
+.camp-card::after{ left:-70% !important; animation-name:campShineT !important; will-change:transform; }
+@keyframes adxShineT{ 0%{ transform:translateX(0) skewX(-20deg); } 55%,100%{ transform:translateX(475%) skewX(-20deg); } }
+@keyframes campShineT{ 0%{ transform:translateX(0) skewX(-20deg); } 55%,100%{ transform:translateX(444%) skewX(-20deg); } }
+</style>
+<script>
+/* Kənardan sıxıb böyütmə / iki dəfə toxunub böyütmə — tam bağlı (xəritə istisna) */
+(function(){
+  function onMap(t){ return t && t.closest && t.closest('.gm-style,[id*="map" i]'); }
+  ['gesturestart','gesturechange','gestureend'].forEach(function(ev){
+    document.addEventListener(ev, function(e){ if(!onMap(e.target)) e.preventDefault(); }, {passive:false});
+  });
+  document.addEventListener('touchmove', function(e){
+    if (e.touches && e.touches.length > 1 && !onMap(e.target)) e.preventDefault();
+  }, {passive:false});
+  /* iki dəfə toxunub böyütmə CSS touch-action ilə bağlanıb */
+  /* Klaviatura bağlananda ekran yerindən qaçmasın */
+  function pin(){ if (window.scrollX || window.scrollY) window.scrollTo(0,0); }
+  window.addEventListener('scroll', pin, {passive:true});
+  document.addEventListener('focusout', function(){ setTimeout(pin, 60); });
+  /* ===== YANIB-SÖNMƏ / ŞƏKİLLƏRİN GEDİB-GƏLMƏSİ DÜZƏLİŞİ =====
+     Siyahı əvvəllər hər yeniləmədə innerHTML ilə tam silinib yenidən yazılırdı → bütün
+     şəkillər itib yenidən yüklənirdi. İndi yalnız DƏYİŞƏN hissə yenilənir, eyni şəkil
+     elementi yerində qalır (heç vaxt yenidən yüklənmir). */
+  var failed = window.__failedImg = new Set();
+  window.addEventListener('error', function(e){
+    var t = e.target;
+    if (t && t.tagName === 'IMG') {
+      var s = t.getAttribute('data-osrc') || t.getAttribute('src');
+      if (!t.hasAttribute('data-osrc')) t.setAttribute('data-osrc', s);
+      failed.add(s);
+    }
+  }, true);
+  function key(n){ return n.nodeType === 1 ? n.getAttribute('data-k') : null; }
+  function compatible(a,b){ return a.nodeType === b.nodeType && (a.nodeType !== 1 || a.tagName === b.tagName); }
+  function sameImg(a,b){ return b.getAttribute('src') === (a.getAttribute('data-osrc') || a.getAttribute('src')); }
+  function morphAttrs(a,b){
+    var i, n;
+    for (i = a.attributes.length - 1; i >= 0; i--) { n = a.attributes[i].name; if (n !== 'data-osrc' && !b.hasAttribute(n)) a.removeAttribute(n); }
+    for (i = 0; i < b.attributes.length; i++) { n = b.attributes[i]; if (a.getAttribute(n.name) !== n.value) a.setAttribute(n.name, n.value); }
+  }
+  function morphNode(a,b){
+    if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+    if (a.tagName === 'IMG') { if (!sameImg(a,b)) { a.removeAttribute('data-osrc'); morphAttrs(a,b); } return; }
+    morphAttrs(a,b);
+    morphChildren(a,b);
+  }
+  function morphChildren(a,b){
+    var oldKeyed = {}, c, k;
+    for (c = a.firstChild; c; c = c.nextSibling) { k = key(c); if (k) oldKeyed[k] = c; }
+    var cur = a.firstChild, nc = b.firstChild;
+    while (nc) {
+      var next = nc.nextSibling, match = null;
+      k = key(nc);
+      if (k) {
+        match = oldKeyed[k] || null;
+        if (match) { delete oldKeyed[k]; if (match !== cur) a.insertBefore(match, cur); }
+      } else if (cur && !key(cur)) {
+        if (compatible(cur, nc)) match = cur;
+        else if (cur.nodeType === 3 && nc.nodeType === 1 && nc.tagName === 'IMG' && failed.has(nc.getAttribute('src'))) {
+          cur = cur.nextSibling; nc = next; continue;   /* sınıq loqo → hərf qalsın, təkrar yüklənməsin */
+        }
+      }
+      if (match) { morphNode(match, nc); cur = match.nextSibling; }
+      else a.insertBefore(nc, cur);
+      nc = next;
+    }
+    while (cur) { var r = cur.nextSibling; a.removeChild(cur); cur = r; }
+  }
+  window.__morphHTML = function(el, html){
+    if (!el) return;
+    if (!el.firstChild) { el.innerHTML = html; return; }
+    var t = document.createElement('template'); t.innerHTML = html;
+    var w = document.createElement('div'); w.appendChild(t.content);
+    morphChildren(el, w);
+  };
+  /* Eyni HTML yenidən gələndə DOM-a ümumiyyətlə toxunma */
+  window.__setHTMLIfChanged = function(el, html){
+    if (!el) return false;
+    if (el.__lastHtml === html && el.firstChild) return false;
+    el.__lastHtml = html; el.innerHTML = html; return true;
+  };
+
+  /* Təhlükəsizlik: nə olursa olsun 2 san sonra səhifə görünsün */
+  setTimeout(function(){ document.documentElement.classList.add('app-ready'); }, 2000);
+})();
+</script>
 </head>
 
 <body>
@@ -3054,7 +3161,7 @@ async function render(searchText = "", globalSearch = false){
       let cardsHtml = isOpen ? buildCardsHtml(items, globalSearch) : "";
 
       sectionsHtml += `
-        <div class="chain-section">
+        <div class="chain-section" data-k="${chainSafeKey}">
           <div class="chain-header ${isOpen ? 'open' : ''}" data-chain-key="${chainSafeKey}" onclick="toggleChain(this)">
             <div class="chain-header-left">
               <div class="chain-icon">${chainIconHtml}</div>
@@ -3088,7 +3195,7 @@ async function render(searchText = "", globalSearch = false){
     const sig = firstHtml.length + ":" + __sections.length + ":" + firstHtml.slice(0, 400) + firstHtml.slice(-400);
     if(window.__gridSig !== sig || !grid.querySelector('.chain-section')){
       window.__gridSig = sig;
-      grid.innerHTML = firstHtml + (window.__moreSections.length ? '<div id="gridMore" style="height:1px"></div>' : '');
+      window.__morphHTML(grid, firstHtml + (window.__moreSections.length ? '<div id="gridMore" style="height:1px"></div>' : ''));
       __watchGridMore();
     } else if(window.__moreSections.length && !document.getElementById('gridMore')){
       grid.insertAdjacentHTML('beforeend', '<div id="gridMore" style="height:1px"></div>'); __watchGridMore();
@@ -3980,7 +4087,7 @@ window.__setCategories = function(list){
   const extra = (list || []).filter(c => c && c.name && !names.has(c.name));
   const all = defs.concat(extra).filter(c => !window.__isBlockedCat(c.name));
   window.__adultCats = new Set(all.filter(c => c.adult).map(c => c.name));
-  box.innerHTML = all.map(c => {
+  const __catsHtml = all.map(c => {
     let st = "";
     if(!c.builtin){ const col = c.color || "#ff7a00"; st = ` style="background:linear-gradient(150deg,${e(col)}33,${e(col)}22)"`; }
     const inner = c.iconUrl
@@ -3988,6 +4095,7 @@ window.__setCategories = function(list){
       : e(c.icon || "✨");
     return `<div class="cat ${c.name === currentCategory ? "active" : ""}" data-cat="${e(c.name)}" onclick="selectCategory(this.dataset.cat, this)"><div class="cat-icon"${st}>${inner}</div><span>${e(c.name)}${c.adult ? " 🔞" : ""}</span></div>`;
   }).join("");
+  if(!window.__setHTMLIfChanged(box, __catsHtml)) return;
   try{ if(window.__catWheelRefresh) window.__catWheelRefresh(); }catch(e){}
 };
 
@@ -5069,10 +5177,10 @@ function animate(t){
   __bgRaf = requestAnimationFrame(animate);
 }
 function __bgStart(){ if(!__bgRaf && !document.hidden) __bgRaf = requestAnimationFrame(animate); }
-document.addEventListener("visibilitychange", __bgStart);
+/* visibilitychange: bg söndürülüb */
 document.addEventListener("scroll", function(){ __bgPausedUntil = performance.now() + 400; }, { capture: true, passive: true });
 window.addEventListener("resize", function(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
-if(!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) __bgStart();
+/* Arxa fon hissəcikləri performans üçün söndürülüb */
 
 const glow = document.querySelector(".cursor-glow");
 document.addEventListener("mousemove",(e)=>{ if(glow) { glow.style.left = e.clientX + "px"; glow.style.top = e.clientY + "px"; } });
@@ -5189,7 +5297,7 @@ function renderPremiumDeals(){
   });
   deals.sort(function(a,b){ return b.f.discountPercent - a.f.discountPercent; });
 
-  if(searching || (camps.length === 0 && deals.length === 0)){ box.innerHTML = ""; return; }
+  if(searching || (camps.length === 0 && deals.length === 0)){ if(box.firstChild) box.innerHTML = ""; return; }
 
   var html = '<div class="premium-zone">';
   if(camps.length){
@@ -5214,7 +5322,7 @@ function renderPremiumDeals(){
     }).join("") + '</div>';
   }
   html += '</div>';
-  box.innerHTML = html;
+  window.__morphHTML(box, html);
 }
 window.renderPremiumDeals = renderPremiumDeals;
 
@@ -5226,7 +5334,7 @@ function renderPromoRestaurants(){
   var box = document.getElementById("promoRestaurants");
   if(!box) return;
   var list = (window.promoRestaurantsCache || []).slice();
-  if(!list.length){ box.innerHTML = ""; return; }
+  if(!list.length){ window.__setHTMLIfChanged(box, ""); return; }
   var html = '<div class="pr-zone">'
     + '<div class="pz-head"><div class="pz-title">⭐ Önə çıxanlar</div><div class="pz-sub">' + list.length + ' restoran</div></div>'
     + '<div class="pz-scroll">'
@@ -5249,7 +5357,7 @@ function renderPromoRestaurants(){
           + '</div>';
       }).join("")
     + '</div></div>';
-  box.innerHTML = html;
+  window.__setHTMLIfChanged(box, html);
 }
 window.renderPromoRestaurants = renderPromoRestaurants;
 
@@ -5338,7 +5446,7 @@ function updatePromoBadges(){
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, reauthenticateWithPopup, deleteUser } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, reauthenticateWithPopup, deleteUser, updateProfile } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
   import * as firestoreModule from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
   window.firebaseFirestore = firestoreModule;
@@ -5784,20 +5892,32 @@ function updatePromoBadges(){
     return map[err.code] || err.message;
   }
 
-  async function finishSocialLogin(user){
+  function __appleName(result){
+    try{
+      const t = (result && result._tokenResponse) || {};
+      const n = (t.fullName && (t.fullName.givenName || t.fullName.familyName))
+        ? [t.fullName.givenName, t.fullName.familyName].filter(Boolean).join(" ")
+        : [t.firstName, t.lastName].filter(Boolean).join(" ");
+      return (n || "").trim();
+    }catch(e){ return ""; }
+  }
+  async function finishSocialLogin(user, extraName){
+    if(!user.displayName && extraName && typeof updateProfile === "function"){
+      try{ await updateProfile(user, { displayName: extraName }); }catch(e){}
+    }
     const ref = doc(db, "users", user.uid);
     const snap = await getDoc(ref);
     if(snap.exists()){
       // mövcud profilin adını/rolunu üzərinə yazmırıq, yalnız çatışmayanı tamamlayırıq
       const d = snap.data() || {};
       const upd = {};
-      if(!d.name && user.displayName) upd.name = user.displayName;
+      if(!d.name && (user.displayName || extraName)) upd.name = user.displayName || extraName;
       if(!d.email && user.email) upd.email = user.email;
       if(!d.role) upd.role = "customer";
       if(Object.keys(upd).length) await setDoc(ref, upd, { merge: true });
     } else {
       await setDoc(ref, {
-        name: user.displayName || "",
+        name: user.displayName || extraName || "",
         email: user.email || "",
         role: "customer",
         createdAt: new Date()
@@ -5862,25 +5982,38 @@ function updatePromoBadges(){
     }
   };
 
+  /* QEYD: Safari-də (iPhone) authDomain fərqli domen olduğu üçün redirect girişi etibarsızdır —
+     ona görə əsas yol popup-dır (toxunuşun içində dərhal açılır), yalnız bloklananda redirect. */
   window.appleLogin = async function() {
+    if(location.protocol === "file:"){
+      const m = "Apple ilə giriş yalnız https:// ünvanında işləyir.";
+      if(window.showToast) window.showToast("❌ " + m); else alert(m);
+      return;
+    }
     const provider = new OAuthProvider('apple.com');
     provider.addScope('email');
     provider.addScope('name');
+    provider.setCustomParameters({ locale: 'az_AZ' });
     setSocialBtnLoading("appleBtn", true);
     window.__authBusy = true;
     try {
       const result = await signInWithPopup(auth, provider);
-      await finishSocialLogin(result.user);
+      await finishSocialLogin(result.user, __appleName(result));
       window.__authBusy = false;
       await startCustomerSession(result.user);
     } catch(err) {
-      if(err.code === "auth/popup-blocked" || err.code === "auth/popup-closed-by-user"){
-        try { await signInWithRedirect(auth, provider); return; } catch(e2) {}
+      const redirectCodes = ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/web-storage-unsupported"];
+      if(redirectCodes.indexOf(err.code) !== -1){
+        try { await signInWithRedirect(auth, provider); return; } catch(e2) { err = e2; }
       }
-      if(err.code === "auth/operation-not-allowed"){
-        if(window.showToast) window.showToast("❌ Apple ilə giriş hələ aktiv edilməyib (Firebase Console → Authentication → Sign-in method → Apple)");
-        else alert("Apple ilə giriş hələ aktiv edilməyib.");
+      if(err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request" || err.code === "auth/user-cancelled"){
+        /* istifadəçi özü bağladı */
+      } else if(err.code === "auth/operation-not-allowed" || err.code === "auth/invalid-oauth-client-id"){
+        const m = "Apple ilə giriş hələ tam qurulmayıb (Firebase → Authentication → Sign-in method → Apple).";
+        console.error("Apple giriş xətası:", err.code, err.message);
+        if(window.showToast) window.showToast("❌ " + m); else alert(m);
       } else {
+        console.error("Apple giriş xətası:", err);
         if(window.showToast) window.showToast("❌ " + mapAuthError(err)); else alert(mapAuthError(err));
       }
     } finally {
@@ -5890,7 +6023,10 @@ function updatePromoBadges(){
   };
 
   getRedirectResult(auth).then(async (result) => {
-    if(result && result.user){ await finishSocialLogin(result.user); }
+    if(result && result.user){
+      const pid = (result.providerId || ((result.user.providerData || [])[0] || {}).providerId || "");
+      await finishSocialLogin(result.user, pid === "apple.com" ? __appleName(result) : "");
+    }
   }).catch((err) => {
     if(err && err.code){
       console.warn("Redirect login error:", err.code, err.message);
